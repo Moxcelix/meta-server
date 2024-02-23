@@ -34,7 +34,7 @@ public class Server(string ipAddress, int port)
         NetworkStream stream = client.GetStream();
 
         var buffer = new byte[1024];
-        var bytesRead = 0;
+        int bytesRead;
 
         try
         {
