@@ -1,4 +1,6 @@
-﻿public class Programm
+﻿using MetaServer;
+
+public class Programm
 {
     public static void Main(string[] args)
     {

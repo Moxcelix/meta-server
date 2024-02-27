@@ -2,89 +2,112 @@
 using System.Net.Sockets;
 using System.Text;
 
-public class Server
+namespace MetaServer
 {
-    private readonly TcpListener _listener;
-    private readonly List<TcpClient> _clients = new List<TcpClient>();
-    private bool _isRunning = true;
-    private readonly object _lock = new object();
-
-    public Server(string ipAddress, int port)
+    public class Server
     {
-        _listener = new TcpListener(IPAddress.Parse(ipAddress), port);
-    }
+        private readonly TcpListener _listener;
+        private readonly List<Client> _clients = new List<Client>();
+        private bool _isRunning = true;
+        private readonly object _lock = new object();
 
-    public void Start()
-    {
-        _listener.Start();
-        Console.WriteLine("Сервер запущен. Ожидание подключений...");
-
-        while (_isRunning)
+        public Server(string ipAddress, int port)
         {
-            TcpClient client = _listener.AcceptTcpClient();
-            lock (_lock)
-            {
-                _clients.Add(client);
-            }
-
-            Console.WriteLine("Новый клиент подключен: " + client.Client.RemoteEndPoint);
-
-            Thread clientThread = new Thread(HandleClient);
-            clientThread.Start(client);
+            _listener = new TcpListener(IPAddress.Parse(ipAddress), port);
         }
-    }
 
-    private void HandleClient(object obj)
-    {
-        TcpClient client = (TcpClient)obj;
-        NetworkStream stream = client.GetStream();
-
-        byte[] buffer = new byte[1024];
-        int bytesRead;
-
-        try
+        public void Start()
         {
-            while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+            _listener.Start();
+            Console.WriteLine("Сервер запущен. Ожидание подключений...");
+
+            while (_isRunning)
             {
-                string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                Console.WriteLine("Получено сообщение от клиента " + client.Client.RemoteEndPoint + ": " + message);
+                TcpClient tcpClient = _listener.AcceptTcpClient();
+
+                var client = new Client(tcpClient);
 
                 lock (_lock)
                 {
-                    foreach (TcpClient c in _clients)
+                    _clients.Add(client);
+                }
+
+                Console.WriteLine("Новый клиент подключен: " + client.EndPoint);
+
+                Thread clientThread = new Thread(HandleClient);
+                clientThread.Start(client);
+            }
+        }
+
+        private void HandleClient(object? obj)
+        {
+            if (obj == null)
+            {
+                return;
+            }
+
+            var client = (Client)obj;
+
+            //byte[] buffer = new byte[1024];
+            //int bytesRead;
+
+            try
+            {
+                //while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                while (true)
+                {
+                    //string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                    var message = client.Reader.ReadLine();
+
+                    Console.WriteLine("Получено сообщение от клиента " + client.EndPoint + ": " + message);
+
+                    lock (_lock)
                     {
-                        if (c.Client.RemoteEndPoint != client.Client.RemoteEndPoint)
+                        foreach (var c in _clients)
                         {
-                            byte[] data = Encoding.UTF8.GetBytes(message);
-                            c.GetStream().Write(data, 0, data.Length);
+                            if (c.EndPoint == client.EndPoint)
+                            {
+                                continue;
+                            }
+
+                            if (string.IsNullOrEmpty(message))
+                            {
+                                continue;
+                            }
+
+                            //byte[] data = Encoding.UTF8.GetBytes(message);
+
+                            //c.GetStream().Write(data, 0, data.Length);
+
+                            c.Writer.WriteLine(message);
                         }
                     }
                 }
             }
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine("Ошибка чтения данных от клиента " + client.Client.RemoteEndPoint + ": " + e.Message);
-        }
-        finally
-        {
-            lock (_lock)
+            catch (Exception e)
             {
-                _clients.Remove(client);
+                Console.WriteLine("Ошибка чтения данных от клиента " + client.EndPoint + ": " + e.Message);
             }
-            Console.WriteLine("Клиент отключен: " + client.Client.RemoteEndPoint);
-            client.Close();
+            finally
+            {
+                lock (_lock)
+                {
+                    _clients.Remove(client);
+                }
+                Console.WriteLine("Клиент отключен: " + client.EndPoint);
+                client.Close();
+            }
         }
-    }
 
-    public void Stop()
-    {
-        _isRunning = false;
-        _listener.Stop();
-
-        foreach (TcpClient client in _clients)
+        public void Stop()
         {
-            client.Close();
+            _isRunning = false;
+            _listener.Stop();
+
+            foreach (var client in _clients)
+            {
+                client.Close();
+            }
         }
     }
 }
