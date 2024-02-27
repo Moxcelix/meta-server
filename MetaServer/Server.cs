@@ -36,6 +36,11 @@ public class Server
 
     private void HandleClient(object obj)
     {
+        if(obj == null)
+        {
+            return;
+        }
+
         TcpClient client = (TcpClient)obj;
         NetworkStream stream = client.GetStream();
 
