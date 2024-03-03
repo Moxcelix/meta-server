@@ -52,7 +52,7 @@ public class Server
             while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
             {
                 string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                Console.WriteLine("Получено сообщение от клиента " + client.Client.RemoteEndPoint + ": " + message);
+                //Console.WriteLine("Получено сообщение от клиента " + client.Client.RemoteEndPoint + ": " + message);
 
                 lock (_lock)
                 {
